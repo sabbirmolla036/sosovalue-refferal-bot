@@ -23,7 +23,7 @@ print("=============================================")
 app = Flask(__name__)
 tokens = []
 
-# HTML with 5 CAPTCHA widgets
+# HTML with auto-reload after token received
 template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -67,7 +67,8 @@ template = """
             try {
                 const response = await fetch(`/reserve_token?token=${token}`);
                 if (response.ok) {
-                    document.getElementById("status").textContent = "Token stored! Solve another to add more.";
+                    document.getElementById("status").textContent = "Token stored! Reloading...";
+                    setTimeout(() => location.reload(), 1000); // Auto reload after 1 second
                 } else {
                     document.getElementById("status").textContent = "Failed to store token.";
                 }
