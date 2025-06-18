@@ -3,7 +3,7 @@ bash
 Copy
 Edit
 git clone https://github.com/sabbirmolla036/sosovalue-refferal-bot.git
-cd Sosovalue
+cd sosovalue-refferal-bot
 python app.py
 Now copy the web url e.g.: http://localhost:8080
 
