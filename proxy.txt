@@ -1,0 +1,6 @@
+http://username:password@IP:Port 
+http://username:password@IP:Port
+http://username:password@IP:Port
+http://username:password@IP:Port
+http://username:password@IP:Port
+http://username:password@IP:Port
