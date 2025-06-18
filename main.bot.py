@@ -5,7 +5,6 @@ import time
 import os
 import random
 import string
-import threading
 
 logo = f"""
 
@@ -16,8 +15,8 @@ logo = f"""
 ██║  ██║██║  ██║██║  ██║██║     ██║  ██║   ██║
 ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝   ╚═╝
 ----------------------------------------------------
-> TG CHANNEL :  @sabbirmoll036
-> MARIA
+> TG CHANNEL :  @cryptowitharyanog
+> YouTube    :  @cryptowitharyan
 \033[1;34m------------------------------------------\033[0m"""
 
 os.system('clear')
@@ -130,6 +129,9 @@ def verify_email(password, email, code, refcode, proxy):
     ).json()
     return response
 
+def console(mail, password, code):
+    return 'ok'
+
 def get_captcha():
     global base_url
     while True:
@@ -139,61 +141,28 @@ def get_captcha():
         else:
             time.sleep(0.3)
 
-file_lock = threading.Lock()
-proxy_lock = threading.Lock()
-
-def worker():
-    while True:
-        try:
-            email = mail.getmails()
-            print('> \033[1;32mNew email :', email)
-            password = generate_password()
-            decpass = str(base64.b64decode(password.encode())).replace("b'", '').replace("'", '')
-            print('\033[0m> \033[1;32mPassword :', decpass)
-            captcha_token = get_captcha()
-
-            with proxy_lock:
-                proxy = get_random_proxy()
-                if isinstance(proxy, str) and 'All proxies used' in proxy:
-                    print('\033[1;31mAll proxies used now! Thread ending.')
-                    return
-
-            create_account_response = create_account(captcha_token, password, email, proxy)
-            if create_account_response.get('code') == 0:
-                print(f'\033[0m>\033[1;32m Email sent successfully \033[0m')
-            else:
-                print(f"[!] Failed to send email for {email}")
-                continue
-
-            username, domain = email.split('@')
-            code = mail.get_verification_link(email, domain)
-
-            if not code:
-                print(f"[!] No verification code found for {email}")
-                continue
-
-            verify_response = verify_email(password, email, code, refcode, proxy)
-
-            if verify_response.get('code') == 0:
-                print(f'>\033[1;32m Email verified successfully \033[0m')
-                with file_lock:
-                    with open('accounts.txt', 'a') as file:
-                        file.write(f"Email : {email} \nPassword : {decpass} \nToken : {verify_response['data']['token']}\nRefresh Token : {verify_response['data']['refreshToken']}\n--------------------------------\n")
-            else:
-                print(f"[!] Verification failed for {email}: {verify_response}")
-            
-            print(f"\033[1;34m{'-' * 42}\033[0m")
-        except Exception as e:
-            print('\033[0m> \033[1;31mError:', str(e), '\033[1;34m------------------------------------------\033[0m')
-
-# Number of parallel threads
-THREADS = 5
-
-threads = []
-for _ in range(THREADS):
-    t = threading.Thread(target=worker)
-    t.start()
-    threads.append(t)
-
-for t in threads:
-    t.join()
+while True:
+    try:
+        email = mail.getmails()
+        print('> \033[1;32mNew email :', email)
+        password = generate_password()
+        decpass = str(base64.b64decode(password.encode())).replace("b'", '').replace("'", '')
+        print('\033[0m> \033[1;32mPassword :', decpass)
+        captcha_token = get_captcha()
+        proxy = get_random_proxy()
+        if 'All proxies used' in proxy:
+            print('\033[1;31mAll proxies used now! Ending.')
+            break
+        create_account_response = create_account(captcha_token, password, email, proxy)
+        if create_account_response['code'] == 0:
+            print(f'\033[0m>\033[1;32m Email sent successfully \033[0m')
+        username, domain = email.split('@')
+        code = mail.get_verification_link(email, domain)
+        verify_response = verify_email(password, email, code, refcode, proxy)
+        with open('accounts.txt', 'a') as file:
+            file.write(f"Email : {email} \nPassword : {decpass} \nToken : {verify_response['data']['token']}\nRefresh Token : {verify_response['data']['refreshToken']}\n--------------------------------\n")
+        if verify_response['code'] == 0:
+            print(f'>\033[1;32m Email verified successfully \033[0m')
+        print(f"\033[1;34m{'-' * 42}\033[0m")
+    except Exception as e:
+        print('\033[0m> \033[1;31mError :', str(e) + '\033[1;34m------------------------------------------\033[0m')
