@@ -23,6 +23,7 @@ os.system('clear')
 print(logo)
 base_url = input('> Input base url : ')
 refcode = input('> Referral code : ')
+target_referrals = int(input('> Enter target referral count (number of accounts to create): '))
 print('\033[1;34m------------------------------------------\033[0m')
 
 def generate_password(length=8):
@@ -141,6 +142,8 @@ def get_captcha():
         else:
             time.sleep(0.3)
 
+successful_referrals = 0
+
 while True:
     try:
         email = mail.getmails()
@@ -162,7 +165,11 @@ while True:
         with open('accounts.txt', 'a') as file:
             file.write(f"Email : {email} \nPassword : {decpass} \nToken : {verify_response['data']['token']}\nRefresh Token : {verify_response['data']['refreshToken']}\n--------------------------------\n")
         if verify_response['code'] == 0:
+            successful_referrals += 1
             print(f'>\033[1;32m Email verified successfully \033[0m')
+            if successful_referrals >= target_referrals:
+                print(f"\033[1;34mTarget of {target_referrals} referrals reached. Stopping script.\033[0m")
+                break
         print(f"\033[1;34m{'-' * 42}\033[0m")
     except Exception as e:
         print('\033[0m> \033[1;31mError :', str(e) + '\033[1;34m------------------------------------------\033[0m')
