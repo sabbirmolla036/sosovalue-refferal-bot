@@ -2,7 +2,7 @@ Installation
 bash
 Copy
 Edit
-git clone https://github.com/blacksmith69-glitch/Sosovalue
+git clone https://github.com/sabbirmolla036/sosovalue-refferal-bot.git
 cd Sosovalue
 python app.py
 Now copy the web url e.g.: http://localhost:8080
