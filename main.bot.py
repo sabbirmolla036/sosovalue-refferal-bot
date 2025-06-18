@@ -142,6 +142,11 @@ def get_captcha():
         else:
             time.sleep(0.3)
 
+def show_referral_progress(current, target):
+    done = current
+    left = target - current
+    print(f"\033[1;34mReferral Progress: {done} done, {left} to go (Target: {target})\033[0m")
+
 successful_referrals = 0
 
 while True:
@@ -167,6 +172,7 @@ while True:
         if verify_response['code'] == 0:
             successful_referrals += 1
             print(f'>\033[1;32m Email verified successfully \033[0m')
+            show_referral_progress(successful_referrals, target_referrals)
             if successful_referrals >= target_referrals:
                 print(f"\033[1;34mTarget of {target_referrals} referrals reached. Stopping script.\033[0m")
                 break
