@@ -8,7 +8,6 @@ import string
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
 logo = f"""
-
 █████╗ ██████╗  █████╗ ███████╗ █████╗ ████████╗
 ██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔══██╗╚══██╔══╝
 ███████║██████╔╝███████║█████╗  ███████║   ██║
@@ -20,13 +19,19 @@ logo = f"""
 > YouTube    :  @cryptowitharyan
 \033[1;34m------------------------------------------\033[0m"""
 
-os.system('clear')
+os.system('cls' if os.name == 'nt' else 'clear')
 print(logo)
 
-base_url            = input('> Input base url : ')
-refcode             = input('> Referral code : ')
-target_referrals    = int(input('> Enter target referral count (number of accounts to create): '))
-use_free_proxy      = input('> Use free proxies from internet? (y/n): ').strip().lower() == 'y'
+base_url = input('> Input base url : ')
+refcode = input('> Referral code : ')
+target_referrals = int(input('> Enter target referral count (number of accounts to create): '))
+use_free_proxy = input('> Use free proxies from internet? (y/n): ').strip().lower() == 'y'
+proxy_type = input('> Proxy type (http/socks4/socks5): ').strip().lower()
+
+if proxy_type not in ['http', 'socks4', 'socks5']:
+    print('\033[1;33m[!] Invalid proxy type. Defaulting to http.\033[0m')
+    proxy_type = 'http'
+
 print('\033[1;34m------------------------------------------\033[0m')
 
 def generate_password(length=8):
@@ -37,35 +42,39 @@ def generate_password(length=8):
         random.choice(string.digits),
         random.choice("@#$&"),
     ]
-    parts += random.choices(string.ascii_letters + string.digits + "@#$&", k=length-4)
+    parts += random.choices(string.ascii_letters + string.digits + "@#$&", k=length - 4)
     password = ''.join(parts)
     return base64.b64encode(password.encode()).decode()
 
 def get_random_proxy():
-    with open('proxy.txt', 'r') as f:
-        proxies = [p.strip() for p in f if p.strip()]
-    if not proxies:
+    try:
+        with open('proxy.txt', 'r') as f:
+            proxies = [p.strip() for p in f if p.strip()]
+        if not proxies:
+            return None
+        selected = random.choice(proxies)
+        return {
+            'http': f'{proxy_type}://{selected}',
+            'https': f'{proxy_type}://{selected}'
+        }
+    except FileNotFoundError:
         return None
-    selected = random.choice(proxies)
-    return {'http': selected, 'https': selected}
 
 def fetch_free_proxy():
     try:
-        resp = requests.get("https://free-proxy-list.net/")
+        resp = requests.get("https://free-proxy-list.net/", timeout=10)
         soup = BeautifulSoup(resp.text, 'html.parser')
         rows = soup.select("table#proxylisttable tbody tr")
-        candidates = [
+        proxies = [
             f"{r.find_all('td')[0].text}:{r.find_all('td')[1].text}"
-            for r in rows
-            if r.find_all('td')[6].text.strip() == "yes"
+            for r in rows if r.find_all('td')[6].text.strip().lower() == "yes"
         ]
-        if not candidates:
-            return None
-        proxy = random.choice(candidates)
-        return {'http': f"http://{proxy}", 'https': f"http://{proxy}"}
+        if not proxies:
+            print("\033[1;31m[-] No HTTPS proxies found.\033[0m")
+        return proxies
     except Exception as e:
         print(f"\033[1;31m[-] Free-proxy fetch error: {e}\033[0m")
-        return None
+        return []
 
 def get_captcha():
     while True:
@@ -84,21 +93,14 @@ def create_account(captcha_token, password, email, proxy):
     }
     headers = {
         'Host': 'gw.sosovalue.com',
-        'sec-ch-ua-platform': 'Android',
-        'user-device': 'Chrome/131.0.6778.260#Android/15',
-        'accept-language': 'en',
-        'sec-ch-ua': 'Android',
-        'sec-ch-ua-mobile': '?1',
         'user-agent': 'Mozilla/5.0 (Linux; Android 15)...',
         'accept': 'application/json, text/plain, */*',
         'content-type': 'application/json;charset=UTF-8',
         'origin': 'https://m.sosovalue.com',
-        'x-requested-with': 'mark.via.gp',
         'referer': 'https://m.sosovalue.com/',
-        'priority': 'u=1, i'
     }
     return requests.post(url, params={'cf-turnstile-response': captcha_token},
-                         headers=headers, json=payload, proxies=proxy).json()
+                         headers=headers, json=payload, proxies=proxy, timeout=15).json()
 
 def verify_email(password, email, code, refcode, proxy):
     url = 'https://gw.sosovalue.com/usercenter/user/anno/v3/register'
@@ -113,25 +115,20 @@ def verify_email(password, email, code, refcode, proxy):
     }
     headers = {
         'Host': 'gw.sosovalue.com',
-        'sec-ch-ua-platform': 'Android',
-        'user-device': 'Chrome/131.0.6778.260#Android/15',
-        'accept-language': 'en',
-        'sec-ch-ua': 'Android',
-        'sec-ch-ua-mobile': '?1',
         'user-agent': 'Mozilla/5.0 (Linux; Android 15)...',
         'accept': 'application/json, text/plain, */*',
         'content-type': 'application/json;charset=UTF-8',
         'origin': 'https://m.sosovalue.com',
-        'x-requested-with': 'mark.via.gp',
         'referer': 'https://m.sosovalue.com/',
-        'priority': 'u=1, i'
     }
-    return requests.post(url, headers=headers, json=payload, proxies=proxy).json()
+    return requests.post(url, headers=headers, json=payload, proxies=proxy, timeout=15).json()
 
 def show_referral_progress(done, target):
     print(f"\033[1;34mReferral Progress: {done} done, {target-done} to go (Target: {target})\033[0m")
 
 successful = 0
+free_proxy_list = fetch_free_proxy() if use_free_proxy else []
+
 while True:
     if successful >= target_referrals:
         print(f"\033[1;34mTarget of {target_referrals} reached. Done.\033[0m")
@@ -144,10 +141,21 @@ while True:
         print('> \033[1;32mPassword:', decpass)
 
         token = get_captcha()
-        proxy = fetch_free_proxy() if use_free_proxy else get_random_proxy()
-        if not proxy:
-            print('\033[1;31mNo proxies available. Exiting.\033[0m')
-            break
+
+        if use_free_proxy:
+            if not free_proxy_list:
+                print('\033[1;31mNo free proxies available. Exiting.\033[0m')
+                break
+            selected = random.choice(free_proxy_list)
+            proxy = {
+                'http': f'{proxy_type}://{selected}',
+                'https': f'{proxy_type}://{selected}'
+            }
+        else:
+            proxy = get_random_proxy()
+            if not proxy:
+                print('\033[1;31mNo local proxies available. Exiting.\033[0m')
+                break
 
         resp1 = create_account(token, b64pass, email, proxy)
         if resp1.get('code') != 0:
