@@ -5,6 +5,7 @@ import time
 import os
 import random
 import string
+from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
 logo = f"""
 
@@ -13,7 +14,7 @@ logo = f"""
 ███████║██████╔╝███████║█████╗  ███████║   ██║
 ██╔══██║██╔══██╗██╔══██║██╔══╝  ██╔══██║   ██║
 ██║  ██║██║  ██║██║  ██║██║     ██║  ██║   ██║
-╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝   ╚═╝
+╚═╝  ╚═╝╚═╝  ██╔╝═╝╚═╝╚═╝     ╚═╝  ╚═╝   ╚═╝
 ----------------------------------------------------
 > TG CHANNEL :  @cryptowitharyanog
 > YouTube    :  @cryptowitharyan
@@ -21,80 +22,66 @@ logo = f"""
 
 os.system('clear')
 print(logo)
-base_url = input('> Input base url : ')
-refcode = input('> Referral code : ')
-target_referrals = int(input('> Enter target referral count (number of accounts to create): '))
+
+base_url            = input('> Input base url : ')
+refcode             = input('> Referral code : ')
+target_referrals    = int(input('> Enter target referral count (number of accounts to create): '))
+use_free_proxy      = input('> Use free proxies from internet? (y/n): ').strip().lower() == 'y'
 print('\033[1;34m------------------------------------------\033[0m')
 
 def generate_password(length=8):
-    if length < 8:
-        length = 8
-
-    upper = random.choice(string.ascii_uppercase)
-    lower = random.choice(string.ascii_lowercase)
-    digit = random.choice(string.digits)
-    special = random.choice("@#$&")
-
-    remaining = ''.join(random.choices(string.ascii_letters + string.digits + "@#$&", k=length - 4))
-
-    password = upper + lower + digit + special + remaining
-    encoded_password = base64.b64encode(password.encode()).decode()
-    return encoded_password
-
-used_proxies = []
+    length = max(length, 8)
+    parts = [
+        random.choice(string.ascii_uppercase),
+        random.choice(string.ascii_lowercase),
+        random.choice(string.digits),
+        random.choice("@#$&"),
+    ]
+    parts += random.choices(string.ascii_letters + string.digits + "@#$&", k=length-4)
+    password = ''.join(parts)
+    return base64.b64encode(password.encode()).decode()
 
 def get_random_proxy():
-    global used_proxies
-    with open('proxy.txt', 'r') as file:
-        proxies = file.read().splitlines()
-    total_proxies = len(proxies)
-    if len(used_proxies) >= total_proxies:
-        return 'All proxies used from `proxy.txt`'
+    with open('proxy.txt', 'r') as f:
+        proxies = [p.strip() for p in f if p.strip()]
+    if not proxies:
+        return None
+    selected = random.choice(proxies)
+    return {'http': selected, 'https': selected}
 
+def fetch_free_proxy():
+    try:
+        resp = requests.get("https://free-proxy-list.net/")
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        rows = soup.select("table#proxylisttable tbody tr")
+        candidates = [
+            f"{r.find_all('td')[0].text}:{r.find_all('td')[1].text}"
+            for r in rows
+            if r.find_all('td')[6].text.strip() == "yes"
+        ]
+        if not candidates:
+            return None
+        proxy = random.choice(candidates)
+        return {'http': f"http://{proxy}", 'https': f"http://{proxy}"}
+    except Exception as e:
+        print(f"\033[1;31m[-] Free-proxy fetch error: {e}\033[0m")
+        return None
+
+def get_captcha():
     while True:
-        proxy = random.choice(proxies)
-        if proxy not in used_proxies:
-            used_proxies.append(proxy)
-            return {'http': proxy, 'https': proxy}
+        token = requests.get(f'{base_url}/get').text
+        if token != "No tokens available":
+            return token
+        time.sleep(0.3)
 
 def create_account(captcha_token, password, email, proxy):
-    headers = {
-        'Host': 'gw.sosovalue.com',
-        'sec-ch-ua-platform': 'Android',
-        'user-device': 'Chrome/131.0.6778.260#Android/15',
-        'accept-language': 'en',
-        'sec-ch-ua': 'Android',
-        'sec-ch-ua-mobile': '?1',
-        'user-agent': 'Mozilla/5.0 (Linux; Android 15; 23129RAA4G Build/AQ3A.240829.003) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.260 Mobile Safari/537.36',
-        'accept': 'application/json, text/plain, */*',
-        'content-type': 'application/json;charset=UTF-8',
-        'origin': 'https://m.sosovalue.com',
-        'x-requested-with': 'mark.via.gp',
-        'sec-fetch-site': 'same-site',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-dest': 'empty',
-        'referer': 'https://m.sosovalue.com/',
-        'priority': 'u=1, i'
-    }
-    json_data = {
+    url = 'https://gw.sosovalue.com/usercenter/email/anno/sendRegisterVerifyCode/V2'
+    payload = {
         'password': password,
         'rePassword': password,
         'username': 'NEW_USER_NAME_02',
         'email': email
     }
-    params = {
-        'cf-turnstile-response': captcha_token,
-    }
-    response = requests.post(
-        'https://gw.sosovalue.com/usercenter/email/anno/sendRegisterVerifyCode/V2',
-        params=params,
-        headers=headers,
-        json=json_data,
-        proxies=proxy
-    ).json()
-    return response
-
-def verify_email(password, email, code, refcode, proxy):
     headers = {
         'Host': 'gw.sosovalue.com',
         'sec-ch-ua-platform': 'Android',
@@ -102,18 +89,20 @@ def verify_email(password, email, code, refcode, proxy):
         'accept-language': 'en',
         'sec-ch-ua': 'Android',
         'sec-ch-ua-mobile': '?1',
-        'user-agent': 'Mozilla/5.0 (Linux; Android 15; 23129RAA4G Build/AQ3A.240829.003) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.260 Mobile Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 15)...',
         'accept': 'application/json, text/plain, */*',
         'content-type': 'application/json;charset=UTF-8',
         'origin': 'https://m.sosovalue.com',
         'x-requested-with': 'mark.via.gp',
-        'sec-fetch-site': 'same-site',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-dest': 'empty',
         'referer': 'https://m.sosovalue.com/',
-        'priority': 'u=1, i',
+        'priority': 'u=1, i'
     }
-    json_data = {
+    return requests.post(url, params={'cf-turnstile-response': captcha_token},
+                         headers=headers, json=payload, proxies=proxy).json()
+
+def verify_email(password, email, code, refcode, proxy):
+    url = 'https://gw.sosovalue.com/usercenter/user/anno/v3/register'
+    payload = {
         'password': password,
         'rePassword': password,
         'username': 'NEW_USER_NAME_02',
@@ -122,60 +111,66 @@ def verify_email(password, email, code, refcode, proxy):
         'invitationCode': refcode,
         'invitationFrom': 'null'
     }
-    response = requests.post(
-        'https://gw.sosovalue.com/usercenter/user/anno/v3/register',
-        headers=headers,
-        json=json_data,
-        proxies=proxy
-    ).json()
-    return response
+    headers = {
+        'Host': 'gw.sosovalue.com',
+        'sec-ch-ua-platform': 'Android',
+        'user-device': 'Chrome/131.0.6778.260#Android/15',
+        'accept-language': 'en',
+        'sec-ch-ua': 'Android',
+        'sec-ch-ua-mobile': '?1',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 15)...',
+        'accept': 'application/json, text/plain, */*',
+        'content-type': 'application/json;charset=UTF-8',
+        'origin': 'https://m.sosovalue.com',
+        'x-requested-with': 'mark.via.gp',
+        'referer': 'https://m.sosovalue.com/',
+        'priority': 'u=1, i'
+    }
+    return requests.post(url, headers=headers, json=payload, proxies=proxy).json()
 
-def console(mail, password, code):
-    return 'ok'
+def show_referral_progress(done, target):
+    print(f"\033[1;34mReferral Progress: {done} done, {target-done} to go (Target: {target})\033[0m")
 
-def get_captcha():
-    global base_url
-    while True:
-        token = requests.get(f'{base_url}/get').text
-        if token != "No tokens available":
-            return token
-        else:
-            time.sleep(0.3)
-
-def show_referral_progress(current, target):
-    done = current
-    left = target - current
-    print(f"\033[1;34mReferral Progress: {done} done, {left} to go (Target: {target})\033[0m")
-
-successful_referrals = 0
-
+successful = 0
 while True:
+    if successful >= target_referrals:
+        print(f"\033[1;34mTarget of {target_referrals} reached. Done.\033[0m")
+        break
     try:
         email = mail.getmails()
-        print('> \033[1;32mNew email :', email)
-        password = generate_password()
-        decpass = str(base64.b64decode(password.encode())).replace("b'", '').replace("'", '')
-        print('\033[0m> \033[1;32mPassword :', decpass)
-        captcha_token = get_captcha()
-        proxy = get_random_proxy()
-        if 'All proxies used' in proxy:
-            print('\033[1;31mAll proxies used now! Ending.')
+        print('> \033[1;32mNew email:', email)
+        b64pass = generate_password()
+        decpass = base64.b64decode(b64pass).decode()
+        print('> \033[1;32mPassword:', decpass)
+
+        token = get_captcha()
+        proxy = fetch_free_proxy() if use_free_proxy else get_random_proxy()
+        if not proxy:
+            print('\033[1;31mNo proxies available. Exiting.\033[0m')
             break
-        create_account_response = create_account(captcha_token, password, email, proxy)
-        if create_account_response['code'] == 0:
-            print(f'\033[0m>\033[1;32m Email sent successfully \033[0m')
+
+        resp1 = create_account(token, b64pass, email, proxy)
+        if resp1.get('code') != 0:
+            print('\033[1;31mAccount creation failed:', resp1)
+            continue
+        print('> \033[1;32mEmail verification code sent.\033[0m')
+
         username, domain = email.split('@')
         code = mail.get_verification_link(email, domain)
-        verify_response = verify_email(password, email, code, refcode, proxy)
-        with open('accounts.txt', 'a') as file:
-            file.write(f"Email : {email} \nPassword : {decpass} \nToken : {verify_response['data']['token']}\nRefresh Token : {verify_response['data']['refreshToken']}\n--------------------------------\n")
-        if verify_response['code'] == 0:
-            successful_referrals += 1
-            print(f'>\033[1;32m Email verified successfully \033[0m')
-            show_referral_progress(successful_referrals, target_referrals)
-            if successful_referrals >= target_referrals:
-                print(f"\033[1;34mTarget of {target_referrals} referrals reached. Stopping script.\033[0m")
-                break
-        print(f"\033[1;34m{'-' * 42}\033[0m")
+        resp2 = verify_email(b64pass, email, code, refcode, proxy)
+        if resp2.get('code') == 0:
+            successful += 1
+            print('> \033[1;32mEmail verified & account registered.\033[0m')
+            show_referral_progress(successful, target_referrals)
+
+            token_data = resp2['data']
+            with open('accounts.txt', 'a') as f:
+                f.write(f"Email: {email}\nPassword: {decpass}\nToken: {token_data.get('token')}\nRefresh: {token_data.get('refreshToken')}\n{'-'*24}\n")
+
+        else:
+            print('> \033[1;31mVerification/register failed:', resp2)
+
+        print('\033[1;34m' + '-'*40 + '\033[0m')
     except Exception as e:
-        print('\033[0m> \033[1;31mError :', str(e) + '\033[1;34m------------------------------------------\033[0m')
+        print('\033[1;31mError:', e)
+        print('\033[1;34m' + '-'*40 + '\033[0m')
